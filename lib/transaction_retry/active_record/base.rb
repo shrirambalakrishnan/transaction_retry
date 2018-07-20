@@ -46,7 +46,7 @@ module TransactionRetry
               $!.class.name
             end
 
-            logger.warn "#{type_s} detected. Retrying for the #{retry_count}-#{postfix} time..." if logger
+            logger.info "#{type_s} detected. Retrying for the #{retry_count}-#{postfix} time..." if logger
             tr_exponential_pause( retry_count )
             retry
           end
