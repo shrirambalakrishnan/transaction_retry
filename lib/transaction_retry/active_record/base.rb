@@ -13,9 +13,9 @@ module TransactionRetry
           end
         end
       end
-      
+
       module ClassMethods
-        
+
         def transaction_with_retry(*objects, &block)
           retry_count = 0
 
@@ -30,16 +30,18 @@ module TransactionRetry
 
           begin
             transaction_without_retry(*objects, &block)
-          rescue *[::ActiveRecord::TransactionIsolationConflict, *retry_on]
+          rescue *[::ActiveRecord::TransactionIsolationConflict, ::ActiveRecord::Deadlocked, *retry_on]
             raise if retry_count >= max_retries
             raise if tr_in_nested_transaction?
-            
+
             retry_count += 1
             postfix = { 1 => 'st', 2 => 'nd', 3 => 'rd' }[retry_count] || 'th'
 
             type_s = case $!
             when ::ActiveRecord::TransactionIsolationConflict
               "Transaction isolation conflict"
+            when ::ActiveRecord::Deadlocked
+              "Deadlocked conflict"
             else
               $!.class.name
             end
@@ -49,7 +51,7 @@ module TransactionRetry
             retry
           end
         end
-        
+
         private
 
           # Sleep 0, 1, 2, 4, ... seconds up to the TransactionRetry.max_retries.
@@ -66,7 +68,7 @@ module TransactionRetry
 
             sleep( seconds ) if seconds > 0
           end
-        
+
           # Returns true if we are in the nested transaction (the one with :requires_new => true).
           # Returns false otherwise.
           # An ugly tr_ prefix is used to minimize the risk of method clash in the future.
